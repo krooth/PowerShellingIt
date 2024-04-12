@@ -11,6 +11,9 @@ Import-Module ActiveDirectory
 $disableUser = Read-Host "What is the username of the user you want to disable?" 
 $user = Get-ADUser -Identity $disableUser -Properties MemberOf
 
+# Disable the user
+Disable-ADAccount -Identity $user
+
 # Extract each groups and add them to an array
 $userData = @()
 
