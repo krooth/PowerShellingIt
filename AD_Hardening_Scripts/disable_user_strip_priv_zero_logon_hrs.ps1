@@ -34,6 +34,11 @@ $userInfo = [PSCustomObject]@{
 # Add the user data to the array
 $userData += $userInfo
 
+# Set the logonhours to zero
+[byte[]]$hours = @(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+
+# Assign he logonhours to each disabled users
+Get-ADUser -Identity $user | Set-ADUser -Replace @{logonhours = $hours}
 # Output the data in a table
 $userData | Format-Table -AutoSize
 
