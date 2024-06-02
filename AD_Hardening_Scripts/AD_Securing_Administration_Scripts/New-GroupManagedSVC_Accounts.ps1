@@ -27,7 +27,7 @@ function gmsa_property_input {
         global $gMSA_Name, $gMSA_FQDN, $kerb_encryption_type
 
         $gMSA_Name = Read-Host "What is the name of the gmsa you wish to create?"
-        # Check if the gMSA name is provided
+        # Check if the valid response is provided
         if ([string]::IsNullOrWhiteSpace($gMSA_Name)) {
             Write-Host "Please provide a valid name for the Group Managed Service Account (gMSA)." -ForegroundColor Red
         } else {
@@ -89,6 +89,8 @@ function create_gMSA() {
         [string]$gMSA_Name
     )
     try {
+        gmsa_property_input
+        $sec_group_name = create_group
         New-ADServiceAccount $gMSA_Name -DNSHostName $gMSA_HostName -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $   
     } catch {
         Write-Host $_.Exception.Message
@@ -104,14 +106,17 @@ function check_kds_rootkey_validity() {
         $kdsRootKeys = Get-KdsRootKey | Where-Object { $_.EffectiveTime -lt $thresholdDate }
         # Check if there are any KDS root keys created before the threshold date        
         if ($kdsRootKeys.Count -gt 0) {
-            gmsa_property_input
-            $sec_group_name = create_group
-            create_gMSA($sec_group_name)
+            return $true            
         } else {
             # Add the Rootkey 
             <# For Lab Purpose we add 10 hours, for production though we need to wait 10 hours.
             So the key has time to propagate over to all the Domain Contorllers
             #>
+            $purpose = $(Write-Host "Are using this in a lab or production? (L) for Lab (P) for production: " -ForegroundColor red; Read-Host)
+            if ([string]::IsNullOrWhiteSpace($purpose) -and (($purpose -ne 'L') -or ($purpose -ne 'P'))) {
+                Write-Host "Please provide a valid response." -ForegroundColor Red
+            }
+            $purpose = $purpose.ToUpper()
             Add-KdsRootKey -EffectiveTime (Get-Date).AddHours(-10)
             # For Production, only if it doesn't exist previously #
             Add-KdsRootKey -EffectiveImmediately
