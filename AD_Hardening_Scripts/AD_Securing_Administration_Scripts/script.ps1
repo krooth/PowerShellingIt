@@ -1,11 +1,11 @@
 # Get the current date formatted to match the EffectiveTime format
-$currentDateFormatted = Get-Date -Format "yyyyMMddHHmmss.fffffffZ"
+$currentDateFormatted = Get-Date -Format "yyyy/MM/dd hh:mm:ss tt"
 
 # Set the time span to check for the KDS root key creation
-$timeSpan = New-TimeSpan -Days 30  # Adjust the number of days as needed
+$timeSpan = New-TimeSpan -Days 1  # Adjust the number of days as needed
 
 # Calculate the date 30 days ago
-$thresholdDate = (Get-Date).AddDays(-30).ToString("yyyyMMddHHmmss.fffffffZ")
+$thresholdDate = (Get-Date).AddDays(-1).ToString("yyyy/MM/dd hh:mm:ss tt")
 
 # Get the KDS root keys created before the threshold date
 $kdsRootKeys = Get-KdsRootKey | Where-Object { $_.EffectiveTime -lt $thresholdDate }
