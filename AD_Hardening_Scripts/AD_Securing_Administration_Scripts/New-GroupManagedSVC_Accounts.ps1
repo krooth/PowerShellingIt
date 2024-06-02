@@ -64,21 +64,25 @@ function add_nodes_to_sec_group {
 
     try {
         $nodes = @()
-    do {
-        $node = Read-Host "Enter the name of node to add to the security group?"
-        if ($node -ne "") {
-            $node = Get-ADComputer -Identity $node | Select-Object -ExpandProperty SamAccountName
-            $nodes += $node
+        do {
+            $node = Read-Host "Enter the name of node to add to the security group?"
+            if ($node -ne "") {
+                $nodeObject = Get-ADComputer -Identity $node -ErrorAction Stop
+                $nodeName = $nodeObject.SamAccountName
+                $nodes += $nodeName
+            }
+        } while ($node -ne "")
+        
+        # Loop through each node name and add it to the security group
+        foreach ($node in $nodes) {
+            Add-ADGroupMember -Identity $sec_group_name -Members $node -ErrorAction Stop
         }
-    } while (node -ne "")
-    # Loop through each node name and add it to the security group
-    foreach ($node in $nodes) {
-        Add-ADGroupMember -Identity $sec_group_name -Members $node
-    }    
+        Write-Host "Nodes added to security group successfully." -ForegroundColor Green
     } catch {
-        Write-Host $_.Exception.Message
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
+
 # Function for creating gMSA
 function create_gMSA() {
     [CmdletBinding()]
