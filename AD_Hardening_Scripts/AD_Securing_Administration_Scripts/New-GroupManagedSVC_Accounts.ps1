@@ -16,10 +16,6 @@ Step 2: Create a Security groups and add all the computers we'll use the GMSA on
 Import-Module ActiveDirectory
 
 
-
-# Getting all the hostname from the group
-$gMSA_HostName = Get-ADGroup -Identity gMSAs | Select-Object -ExpandProperty Name
-
 #Functions
 # Function for recieving gmsa value inputs
 function gmsa_property_input {
@@ -92,6 +88,7 @@ function create_gMSA() {
         gmsa_property_input
         $sec_group_name = create_group
         add_nodes_to_sec_group
+        $gMSA_HostName = Get-ADGroup -Identity $sec_group_name | Select-Object -ExpandProperty Name
         New-ADServiceAccount $gMSA_Name -DNSHostName $gMSA_HostName -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $   
     } catch {
         Write-Host $_.Exception.Message
