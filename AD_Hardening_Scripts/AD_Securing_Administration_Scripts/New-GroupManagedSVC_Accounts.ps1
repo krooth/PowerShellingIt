@@ -67,13 +67,12 @@ function add_nodes_to_sec_group {
     do {
         $node = Read-Host "Enter the name of node to add to the security group?"
         if ($node -ne "") {
-            $node = Get-ADComputer -Identity ITSWVIR1000001 | Select-Object -ExpandProperty SamAccountName
             $nodes += $node
         }
     } while (node -ne "")
     # Loop through each node name and add it to the security group
     foreach ($node in $nodes) {
-        Add-ADGroup -Identity $sec_group_name -Members $node
+        Add-ADGroupMember -Identity $sec_group_name -Members $node
     }    
     } catch {
         Write-Host $_.Exception.Message
