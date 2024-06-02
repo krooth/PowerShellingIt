@@ -24,8 +24,8 @@ $gMSA_HostName = Get-ADGroup -Identity gMSAs | Select-Object -ExpandProperty Nam
 # Function for recieving gmsa value inputs
 function gmsa_property_input {
     try {
-        $gmsa_values = @()
-        
+        global $gMSA_Name, $gMSA_FQDN, $kerb_encryption_type
+
         $gMSA_Name = Read-Host "What is the name of the gmsa you wish to create?"
         # Check if the gMSA name is provided
         if ([string]::IsNullOrWhiteSpace($gMSA_Name)) {
@@ -98,7 +98,7 @@ function create_gMSA() {
 
 function check_kds_rootkey_validity() {
     try {
-        $thresholdDate = (Get-Date).AddDays(-1).ToString("yyyy/MM/dd hh:mm:ss tt")
+        $thresholdDate = (Get-Date).AddHours(-1).ToString("yyyy/MM/dd hh:mm:ss tt")
 
         # Get the KDS root keys created before the threshold date
         $kdsRootKeys = Get-KdsRootKey | Where-Object { $_.EffectiveTime -lt $thresholdDate }
@@ -107,42 +107,16 @@ function check_kds_rootkey_validity() {
             gmsa_property_input
             $sec_group_name = create_group
             create_gMSA($sec_group_name)
+        } else {
+            # Add the Rootkey 
+            <# For Lab Purpose we add 10 hours, for production though we need to wait 10 hours.
+            So the key has time to propagate over to all the Domain Contorllers
+            #>
+            Add-KdsRootKey -EffectiveTime (Get-Date).AddHours(-10)
+            # For Production, only if it doesn't exist previously #
+            Add-KdsRootKey -EffectiveImmediately
         }       
     } catch {
         Write-Host $_.Exception.Message
     }
 }
-# Check if an KDS root keys exist
-$rootKeys = Get-KdsRootKey
-if ($rootKeys) {
-    # if key exists loop through each keys
-    foreach (key in $rootKeys) {
-        # Get the curent date and time
-        $currentTime = Get-Date -Format "MM/dd/yyy HH:mm:ss tt"
-        
-
-        # Check if "EffectiveTime" Property exists
-        if ($key.PSPRopertyNames -contains "EffectiveTime") {
-            $effectiveTime = $key.EffectiveTime
-
-            if ($effectiveTime) 
-        }
-        else {
-            Add-KdsRootKey -EffectiveImmediately
-
-        }
-
-    }
-}
-
-# Add the Rootkey #
-
-<# For Lab Purpose we add 10 hours, for production though we need to wait 10 hours.
- So the key has time to propagate over to all the Domain Contorllers
- #>
-Add-KdsRootKey -EffectiveTime (Get-Date).AddHours(-10)
-# For Production, only if it doesn't exist previously #
-Add-KdsRootKey -EffectiveImmediately
-
-# Get the pricipal for the computer account(s) in $gMSA_HostNames
-$
