@@ -51,7 +51,7 @@ function create_group {
     $path = Read-Host "Sepcify the full path of the security group to be created."    
     
     # Create security group
-    $ad_group = New-ADGroup $sec_group_name -Path $Path -GroupCategory Security -GroupScope DomainLocal -PassThru -Verbose 
+    $ad_group = New-ADGroup $sec_group_name -Path $path -GroupCategory Security -GroupScope DomainLocal -PassThru -Verbose 
     $sec_group_name = $ad_group | Select-Object -ExpandProperty SamAccountName
    } catch {
     Write-Host $_.Exception.Message
