@@ -91,6 +91,7 @@ function create_gMSA() {
     try {
         gmsa_property_input
         $sec_group_name = create_group
+        add_nodes_to_sec_group
         New-ADServiceAccount $gMSA_Name -DNSHostName $gMSA_HostName -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $   
     } catch {
         Write-Host $_.Exception.Message
@@ -117,11 +118,31 @@ function check_kds_rootkey_validity() {
                 Write-Host "Please provide a valid response." -ForegroundColor Red
             }
             $purpose = $purpose.ToUpper()
-            Add-KdsRootKey -EffectiveTime (Get-Date).AddHours(-10)
-            # For Production, only if it doesn't exist previously #
-            Add-KdsRootKey -EffectiveImmediately
+
+            if ($purpose -eq 'L') {
+                Add-KdsRootKey -EffectiveTime (Get-Date).AddHours(-10)
+                return $true
+            } else {
+                return $false
+            }
         }       
     } catch {
         Write-Host $_.Exception.Message
     }
+}
+
+# Main 
+
+if (check_kds_rootkey_validity) {
+    create_gMSA
+} else {
+    # For Production, only if it doesn't exist previously #
+    Add-KdsRootKey -EffectiveImmediately
+
+    # Wait for 10 hours until it populates throughout the domain
+    Write-Host "Waiting for 10 hours...."
+    Start-Sleep -Seconds (10 * 3600)
+
+    # Create gMSA after 10 hours
+    create_gMSA
 }
