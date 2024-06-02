@@ -8,7 +8,10 @@ $timeSpan = New-TimeSpan -Days 30  # Adjust the number of days as needed
 $thresholdDate = $currentDate.AddDays(-30)
 
 # Get the KDS root keys created before the threshold date
-$kdsRootKeys = Get-KdsRootKey | Where-Object { [datetime]::Parse($_.EffectiveTime) -lt $thresholdDate }
+$kdsRootKeys = Get-KdsRootKey | Where-Object {
+    $effectiveTime = [datetime]::ParseExact($_.EffectiveTime, "yyyyMMddHHmmss.fffffffZ", [System.Globalization.CultureInfo]::InvariantCulture)
+    $effectiveTime -lt $thresholdDate
+}
 
 # Check if there are any KDS root keys created before the threshold date
 if ($kdsRootKeys.Count -gt 0) {
