@@ -83,8 +83,8 @@ function add_nodes_to_sec_group {
 # Function for creating gMSA
 function create_gMSA {
     try {
-        $gMSAProperties = gmsa_property_input
-        if ($gMSAProperties -eq $null) {
+        $gMSA_Properties = gmsa_property_input
+        if ($gMSA_Properties -eq $null) {
             Write-Host "Failed to collect gMSA properties. Exiting." -ForegroundColor Red
             return
         }
@@ -97,8 +97,8 @@ function create_gMSA {
 
         add_nodes_to_sec_group $sec_group_name
         $gMSA_HostName = Get-ADGroup -Identity $sec_group_name | Select-Object -ExpandProperty Name
-        New-ADServiceAccount -Name $gMSAProperties['gMSA_Name'] -DNSHostName $gMSAProperties['gMSA_FQDN'] `
-            -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $gMSAProperties['kerb_encryption_type']
+        New-ADServiceAccount -Name $gMSA_Properties['gMSA_Name'] -DNSHostName $gMSA_Properties['gMSA_FQDN'] `
+            -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $gMSA_Properties['kerb_encryption_type']
         Write-Host "gMSA created successfully." -ForegroundColor Green
     } catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
