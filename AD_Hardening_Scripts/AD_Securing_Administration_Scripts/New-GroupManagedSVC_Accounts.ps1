@@ -26,74 +26,96 @@ $sec_group_name = $null
 function gmsa_property_input {
     try {
 
-        $gMSA_Name = Read-Host "What is the name of the gmsa you wish to create?"
-        # Check if the valid response is provided
+        $gMSA_Name = Read-Host "What is the name of the gMSA you wish to create?"
         if ([string]::IsNullOrWhiteSpace($gMSA_Name)) {
             Write-Host "Please provide a valid name for the Group Managed Service Account (gMSA)." -ForegroundColor Red
-        } else {
-            $gMSA_FQDN = Read-Host "What is the DNS Name (Fully Qualified Domain Name), like (bob.acme.local)?"
-            if ([string]::IsNullOrWhiteSpace($gMSA_FQDN)) {
-                Write-Host "Please provide a valid name for the Group Managed Service Account (gMSA)." -ForegroundColor Red
-            } else {
-                $kerb_encryption_type = Read-Host "What kind of encyrption do you want to use(None, AES128, AES256, DES, RC4)?"
+            return $null
         }
+        $gMSA_FQDN = Read-Host "What is the DNS Name (Fully Qualified Domain Name), like (bob.acme.local)?"
+        if ([string]::IsNullOrWhiteSpace($gMSA_FQDN)) {
+            Write-Host "Please provide a valid DNS name for the Group Managed Service Account (gMSA)." -ForegroundColor Red
+            return $null
+        }
+        $kerb_encryption_type = Read-Host "What kind of encryption do you want to use (None, AES128, AES256, DES, RC4)?"
         $kerb_encryption_type = $kerb_encryption_type.ToUpper()  
-        }
+
+        return @{
+            'gMSA_Name' = $gMSA_Name
+            'gMSA_FQDN' = $gMSA_FQDN
+            'kerb_encryption_type' = $kerb_encryption_type
+        }     
     } catch {
-        Write-Host $_.Exception.Message
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        return $null
     }
 }
 
 # Function for creating Security Group
 function create_group {
    try {
-    $sec_group_name = Read-Host "What it the name of gMSA password retrieving nodes securty group?"
-    $path = Read-Host "Sepcify the full path of the security group to be created."    
+    $sec_group_name = Read-Host "What is the name of the security group for nodes that can retrieve gMSA credentials?"
+    if ([string]::IsNullOrWhiteSpace($sec_group_name)) {
+        Write-Host "Please provide a valid name for the security group." -ForegroundColor Red
+        return $null
+    }
+    $path = Read-Host "Specify the full path of the security group to be created."
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-Host "Please provide a valid path for the security group." -ForegroundColor Red
+        return $null
+    }    
     
-    # Create security group
     $ad_group = New-ADGroup $sec_group_name -Path $path -GroupCategory Security -GroupScope DomainLocal -PassThru -Verbose 
     $sec_group_name = $ad_group | Select-Object -ExpandProperty SamAccountName
+    return $sec_group_name
    } catch {
-    Write-Host $_.Exception.Message
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    return $null
    } 
 }
-# Function to add nodes to the security group that can retreieve the credentials of the gMSA
+# Function to add nodes to the security group that can retrieve the credentials of the gMSA
 function add_nodes_to_sec_group {
     try {
         $nodes = @()
         do {
-            $node = Read-Host "Enter the name of node to add to the security group?"
-            if ($node -ne "") {
+            $node = Read-Host "Enter the name of a node to add to the security group (leave blank to stop adding):"
+            if (![string]::IsNullOrWhiteSpace($node)) {
                 $nodeObject = Get-ADComputer -Identity $node -ErrorAction Stop
                 $nodeName = $nodeObject.SamAccountName
                 $nodes += $nodeName
             }
-        } while ($node -ne "")
+        } while (![string]::IsNullOrWhiteSpace($node))
         
         # Loop through each node name and add it to the security group
         foreach ($node in $nodes) {
             Add-ADGroupMember -Identity $sec_group_name -Members $node -ErrorAction Stop
         }
-        Write-Host "Nodes added to security group successfully." -ForegroundColor Green
+        Write-Host "Nodes added to the security group successfully." -ForegroundColor Green
     } catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
 # Function for creating gMSA
-function create_gMSA() {
-    
+function create_gMSA {
     try {
-        gmsa_property_input
-        create_group
-        add_nodes_to_sec_group($sec_group_name)
+        $gMSA_Properties = gmsa_property_input
+        if ($gMSA_Properties -eq $null) {
+            Write-Host "Failed to collect gMSA properties. Exiting." -ForegroundColor Red
+            return
+        }
+        $sec_group_name = create_group
+        if ([string]::IsNullOrWhiteSpace($sec_group_name)) {
+            Write-Host "Failed to create the security group. Exiting." -ForegroundColor Red
+            return
+        }
+        add_nodes_to_sec_group $sec_group_name
         $gMSA_HostName = Get-ADGroup -Identity $sec_group_name | Select-Object -ExpandProperty Name
-        New-ADServiceAccount $gMSA_Name -DNSHostName $gMSA_HostName -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $   
+        New-ADServiceAccount -Name $gMSA_Properties['gMSA_Name'] -DNSHostName $gMSA_Properties['gMSA_FQDN'] `
+            -PrincipalsAllowedToRetrieveManagedPassword $sec_group_name -KerberosEncryptionType $gMSA_Properties['kerb_encryption_type']
     } catch {
-        Write-Host $_.Exception.Message
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
-
 
 function check_kds_rootkey_validity() {
     try {
@@ -105,10 +127,6 @@ function check_kds_rootkey_validity() {
         if ($kdsRootKeys.Count -gt 0) {
             return $true            
         } else {
-            # Add the Rootkey 
-            <# For Lab Purpose we add 10 hours, for production though we need to wait 10 hours.
-            So the key has time to propagate over to all the Domain Contorllers
-            #>
             $purpose = $(Write-Host "Are using this in a lab or production? (L) for Lab (P) for production: " -ForegroundColor red; Read-Host)
             if ([string]::IsNullOrWhiteSpace($purpose) -and (($purpose -ne 'L') -or ($purpose -ne 'P'))) {
                 Write-Host "Please provide a valid response." -ForegroundColor Red
