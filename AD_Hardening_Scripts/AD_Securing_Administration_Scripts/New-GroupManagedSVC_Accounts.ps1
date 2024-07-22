@@ -97,7 +97,7 @@ function create_gMSA() {
 
 function check_kds_rootkey_validity() {
     try {
-        $thresholdDate = (Get-Date).AddHours(-1).ToString("yyyy/MM/dd hh:mm:ss tt")
+        $thresholdDate = (Get-Date).AddHours(-10).ToString("yyyy/MM/dd hh:mm:ss tt")
 
         # Get the KDS root keys created before the threshold date
         $kdsRootKeys = Get-KdsRootKey | Where-Object { $_.EffectiveTime -lt $thresholdDate }
